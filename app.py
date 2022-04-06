@@ -6,7 +6,7 @@ from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
 
 from forms import EditUserForm, UserAddForm, LoginForm, MessageForm, CSRFProtection
-from models import db, connect_db, User, Message
+from models import db, connect_db, User, Message, DEFAULT_HEADER_IMG, DEFAULT_PROFILE_IMG
 
 CURR_USER_KEY = "curr_user"
 
@@ -218,7 +218,7 @@ def stop_following(follow_id):
 def update_profile(user_id):
     """Update profile for current user."""
 
-    if not g.user:
+    if not g.user.id==user_id:
         flash("Access unauthorized.", "danger")
         return redirect("/")
 
@@ -231,8 +231,8 @@ def update_profile(user_id):
 
             user.username = form.username.data
             user.email = form.email.data
-            user.image_url = form.image_url.data
-            user.header_image_url = form.header_image_url.data
+            user.image_url = form.image_url.data or DEFAULT_PROFILE_IMG
+            user.header_image_url = form.header_image_url.data or DEFAULT_HEADER_IMG
             user.bio = form.bio.data
 
             db.session.commit()
@@ -246,16 +246,25 @@ def update_profile(user_id):
 def delete_user():
     """Delete user."""
 
-    if not g.user:
-        flash("Access unauthorized.", "danger")
-        return redirect("/")
 
-    do_logout()
+    if g.form.validate_on_submit() and g.user.id==session[CURR_USER_KEY]:
 
-    db.session.delete(g.user)
-    db.session.commit()
 
-    return redirect("/signup")
+        do_logout()
+
+        messages = Message.query.filter_by(user_id=g.user.id).all()
+        for message in messages:
+            db.session.delete(message)
+
+        db.session.commit()
+
+        db.session.delete(g.user)
+        db.session.commit()
+
+        return redirect("/signup")
+
+    flash("Access unauthorized.", "danger")
+    return redirect("/")
 
 
 ##############################################################################
@@ -321,8 +330,7 @@ def homepage():
 
     if g.user:
 
-        following_ids = [user.id for user in g.user.following]
-        following_ids.append(g.user.id)
+        following_ids = [user.id for user in g.user.following] + [g.user.id]
 
         messages = (Message
                     .query
