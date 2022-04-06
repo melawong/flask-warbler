@@ -1,10 +1,11 @@
+from ast import BinOp
 import os
 
 from flask import Flask, render_template, request, flash, redirect, session, g
 from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
 
-from forms import UserAddForm, LoginForm, MessageForm, CSRFProtection
+from forms import EditUserForm, UserAddForm, LoginForm, MessageForm, CSRFProtection
 from models import db, connect_db, User, Message
 
 CURR_USER_KEY = "curr_user"
@@ -116,9 +117,9 @@ def logout():
 
     if form.validate_on_submit():
         do_logout()
-    
+
     flash('Logged out successfully')
-    
+
     return redirect('/login')
 
     # IMPLEMENT THIS AND FIX BUG
@@ -142,7 +143,7 @@ def list_users():
         users = User.query.all()
     else:
         users = User.query.filter(User.username.like(f"%{search}%")).all()
-    
+
 
     return render_template('users/index.html', users=users, form=form)
 
@@ -150,7 +151,7 @@ def list_users():
 @app.get('/users/<int:user_id>')
 def users_show(user_id):
     """Show user profile."""
-    
+
     form = CSRFProtection()
 
     user = User.query.get_or_404(user_id)
@@ -216,11 +217,32 @@ def stop_following(follow_id):
     return redirect(f"/users/{g.user.id}/following")
 
 
-@app.route('/users/profile', methods=["GET", "POST"])
-def profile():
+@app.route('/users/<int:user_id>/edit', methods=["GET", "POST"])
+def update_profile(user_id):
     """Update profile for current user."""
 
-    # IMPLEMENT THIS
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
+    user = User.query.get_or_404(user_id)
+    form = EditUserForm(obj=user)
+
+    if form.validate_on_submit():
+
+        if User.authenticate(user.username, form.password.data):
+
+            user.username = form.username.data
+            user.email = form.email.data
+            user.image_url = form.image_url.data
+            user.header_image_url = form.header_image_url.data
+            user.bio = form.bio.data
+
+            db.session.commit()
+
+            return redirect(f"/users/{user_id}")
+
+    return render_template("/users/edit.html", form=form, user_id=user_id)
 
 
 @app.post('/users/delete')
@@ -299,12 +321,16 @@ def homepage():
     - anon users: no messages
     - logged in: 100 most recent messages of followed_users
     """
-    form = CSRFProtection()
 
+    form = CSRFProtection()
     if g.user:
+
+        following_ids = [user.id for user in g.user.following]
+        following_ids.append(g.user.id)
 
         messages = (Message
                     .query
+                    .filter(Message.user_id.in_(following_ids))
                     .order_by(Message.timestamp.desc())
                     .limit(100)
                     .all())
