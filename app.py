@@ -4,7 +4,7 @@ from flask import Flask, render_template, request, flash, redirect, session, g
 from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
 
-from forms import UserAddForm, LoginForm, MessageForm
+from forms import UserAddForm, LoginForm, MessageForm, CSRFProtection
 from models import db, connect_db, User, Message
 
 CURR_USER_KEY = "curr_user"
@@ -112,6 +112,15 @@ def login():
 def logout():
     """Handle logout of user."""
 
+    form = CSRFProtection()
+
+    if form.validate_on_submit():
+        do_logout()
+    
+    flash('Logged out successfully')
+    
+    return redirect('/login')
+
     # IMPLEMENT THIS AND FIX BUG
     # DO NOT CHANGE METHOD ON ROUTE
 
@@ -126,47 +135,55 @@ def list_users():
     Can take a 'q' param in querystring to search by that username.
     """
 
+    form = CSRFProtection()
     search = request.args.get('q')
 
     if not search:
         users = User.query.all()
     else:
         users = User.query.filter(User.username.like(f"%{search}%")).all()
+    
 
-    return render_template('users/index.html', users=users)
+    return render_template('users/index.html', users=users, form=form)
 
 
 @app.get('/users/<int:user_id>')
 def users_show(user_id):
     """Show user profile."""
+    
+    form = CSRFProtection()
 
     user = User.query.get_or_404(user_id)
 
-    return render_template('users/show.html', user=user)
+    return render_template('users/show.html', user=user, form=form)
 
 
 @app.get('/users/<int:user_id>/following')
 def show_following(user_id):
     """Show list of people this user is following."""
 
+    form = CSRFProtection()
+
     if not g.user:
         flash("Access unauthorized.", "danger")
         return redirect("/")
 
     user = User.query.get_or_404(user_id)
-    return render_template('users/following.html', user=user)
+    return render_template('users/following.html', user=user, form=form)
 
 
 @app.get('/users/<int:user_id>/followers')
 def users_followers(user_id):
     """Show list of followers of this user."""
 
+    form = CSRFProtection()
+
     if not g.user:
         flash("Access unauthorized.", "danger")
         return redirect("/")
 
     user = User.query.get_or_404(user_id)
-    return render_template('users/followers.html', user=user)
+    return render_template('users/followers.html', user=user, form=form)
 
 
 @app.post('/users/follow/<int:follow_id>')
@@ -282,15 +299,17 @@ def homepage():
     - anon users: no messages
     - logged in: 100 most recent messages of followed_users
     """
+    form = CSRFProtection()
 
     if g.user:
+
         messages = (Message
                     .query
                     .order_by(Message.timestamp.desc())
                     .limit(100)
                     .all())
 
-        return render_template('home.html', messages=messages)
+        return render_template('home.html', messages=messages, form=form)
 
     else:
         return render_template('home-anon.html')

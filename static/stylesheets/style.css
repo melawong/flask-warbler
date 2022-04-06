@@ -160,7 +160,6 @@ nav + .container {
 
 #profile-image,
 #profile-avatar {
-  border-radius: 100%;
   display: block;
   margin-left: -15px;
 }
@@ -168,9 +167,11 @@ nav + .container {
 #profile-image {
   margin: 0 auto 15px;
   width: 100%;
+  height: 375px;
 }
 
 #profile-avatar {
+  border-radius: 100%;
   width: 200px;
   height: 200px;
   border: 5px solid #fff;
