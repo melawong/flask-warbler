@@ -52,7 +52,7 @@
         <li><a href="/messages/new">New Message</a></li>
         <li>
           <form action="/logout" method="POST">
-            {{ form.hidden_tag() }}
+            {{ g.form.hidden_tag() }}
             <button>Log out</button>
           </form>
         </li>

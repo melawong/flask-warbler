@@ -31,7 +31,13 @@ connect_db(app)
 
 @app.before_request
 def add_user_to_g():
-    """If we're logged in, add curr user to Flask global."""
+    """
+    Add CSRF Protection Form to Flask global
+    
+    If we're logged in, add curr user to Flask global.
+    """
+
+    g.form = CSRFProtection()
 
     if CURR_USER_KEY in session:
         g.user = User.query.get(session[CURR_USER_KEY])
@@ -113,12 +119,10 @@ def login():
 def logout():
     """Handle logout of user."""
 
-    form = CSRFProtection()
-
-    if form.validate_on_submit():
+    if g.form.validate_on_submit():
         do_logout()
 
-    flash('Logged out successfully')
+    flash('Logged out successfully', 'success')
 
     return redirect('/login')
 
@@ -136,7 +140,6 @@ def list_users():
     Can take a 'q' param in querystring to search by that username.
     """
 
-    form = CSRFProtection()
     search = request.args.get('q')
 
     if not search:
@@ -145,46 +148,40 @@ def list_users():
         users = User.query.filter(User.username.like(f"%{search}%")).all()
 
 
-    return render_template('users/index.html', users=users, form=form)
+    return render_template('users/index.html', users=users)
 
 
 @app.get('/users/<int:user_id>')
 def users_show(user_id):
     """Show user profile."""
 
-    form = CSRFProtection()
-
     user = User.query.get_or_404(user_id)
 
-    return render_template('users/show.html', user=user, form=form)
+    return render_template('users/show.html', user=user)
 
 
 @app.get('/users/<int:user_id>/following')
 def show_following(user_id):
     """Show list of people this user is following."""
 
-    form = CSRFProtection()
-
     if not g.user:
         flash("Access unauthorized.", "danger")
         return redirect("/")
 
     user = User.query.get_or_404(user_id)
-    return render_template('users/following.html', user=user, form=form)
+    return render_template('users/following.html', user=user)
 
 
 @app.get('/users/<int:user_id>/followers')
 def users_followers(user_id):
     """Show list of followers of this user."""
 
-    form = CSRFProtection()
-
     if not g.user:
         flash("Access unauthorized.", "danger")
         return redirect("/")
 
     user = User.query.get_or_404(user_id)
-    return render_template('users/followers.html', user=user, form=form)
+    return render_template('users/followers.html', user=user)
 
 
 @app.post('/users/follow/<int:follow_id>')
@@ -322,7 +319,6 @@ def homepage():
     - logged in: 100 most recent messages of followed_users
     """
 
-    form = CSRFProtection()
     if g.user:
 
         following_ids = [user.id for user in g.user.following]
@@ -335,7 +331,7 @@ def homepage():
                     .limit(100)
                     .all())
 
-        return render_template('home.html', messages=messages, form=form)
+        return render_template('home.html', messages=messages)
 
     else:
         return render_template('home-anon.html')
