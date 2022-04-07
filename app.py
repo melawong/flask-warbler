@@ -33,7 +33,7 @@ connect_db(app)
 def add_user_to_g():
     """
     Add CSRF Protection Form to Flask global
-    
+
     If we're logged in, add curr user to Flask global.
     """
 
@@ -218,6 +218,7 @@ def stop_following(follow_id):
 def update_profile(user_id):
     """Update profile for current user."""
 
+    breakpoint()
     if not g.user.id==user_id:
         flash("Access unauthorized.", "danger")
         return redirect("/")
@@ -359,3 +360,49 @@ def add_header(response):
     # https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
     response.cache_control.no_store = True
     return response
+
+
+##############################################################################
+# Like routes
+
+
+@app.get('/users/<int:user_id>/likes')
+def show_likes(user_id):
+    """Show list of likes for this user."""
+
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
+    user = User.query.get_or_404(user_id)
+    return render_template('users/likes.html', user=user)
+
+
+@app.post('/users/like/<int:message_id>')
+def add_like(message_id):
+    """Add a liked message for the currently-logged-in user."""
+
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
+    liked_message = Message.query.get_or_404(message_id)
+    g.user.likes.append(liked_message)
+    db.session.commit()
+
+    return redirect(f"/users/{g.user.id}/likes")
+
+
+@app.post('/users/unlike/<int:message_id>')
+def unlike(message_id):
+    """Have currently-logged-in-user unlike a message."""
+
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
+    unliked_message = Message.query.get(message_id)
+    g.user.likes.remove(unliked_message)
+    db.session.commit()
+
+    return redirect(f"/users/{g.user.id}/likes")

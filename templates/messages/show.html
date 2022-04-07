@@ -32,6 +32,21 @@
               {% endif %}
             </div>
             <p class="single-message">{{ message.text }}</p>
+            {% if g.user %}
+                {% if g.user.id == message.user.id %}
+                 <div></div>
+                {% elif g.user.has_liked(message) %}
+                  <form method="POST"
+                        action="/users/unlike/{{message.id}}">
+                    <button class="btn"><i class="fas fa-thumbs-up"></i></button>
+                  </form>
+                {% else %}
+                  <form method="POST" action="/users/like/{{message.id}}">
+                    <button class="btn"><i class="far fa-thumbs-up"></i></button>
+                  </form>
+                {% endif %}
+              {% endif %}
+
             <span class="text-muted">{{ message.timestamp.strftime('%d %B %Y') }}</span>
           </div>
         </li>

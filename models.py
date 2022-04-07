@@ -30,6 +30,24 @@ class Follows(db.Model):
     )
 
 
+class Likes(db.Model):
+    """Connection of user <-> liked messages """
+
+    __tablename__ = 'likes'
+
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey('users.id', ondelete="CASCADE"),
+        primary_key=True,
+    )
+
+    message_id = db.Column(
+        db.Integer,
+        db.ForeignKey('messages.id', ondelete="CASCADE"),
+        primary_key=True,
+    )
+
+
 class User(db.Model):
     """User in the system."""
 
@@ -91,6 +109,8 @@ class User(db.Model):
         secondaryjoin=(Follows.user_being_followed_id == id)
     )
 
+    likes = db.relationship("Message", secondary ="likes")
+
     def __repr__(self):
         return f"<User #{self.id}: {self.username}, {self.email}>"
 
@@ -105,6 +125,12 @@ class User(db.Model):
 
         found_user_list = [user for user in self.following if user == other_user]
         return len(found_user_list) == 1
+
+    def has_liked(self, message):
+        """Has this message been liked by current user?"""
+
+        found_like = [liked for liked in self.likes if liked == message]
+        return len(found_like) == 1
 
     @classmethod
     def signup(cls, username, email, password, image_url):
@@ -184,3 +210,5 @@ def connect_db(app):
 
     db.app = app
     db.init_app(app)
+
+
