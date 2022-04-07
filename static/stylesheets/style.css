@@ -21,6 +21,11 @@ body.error-404 {
   cursor: pointer;
 }
 
+.like-btn {
+  position: relative;
+  z-index: 9999;
+}
+
 /* ======================= Nav */
 
 .navbar {

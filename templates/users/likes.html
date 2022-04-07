@@ -12,6 +12,22 @@
             <div class="message-area">
               <a href="/users/{{ msg.user.id }}">@{{ msg.user.username }}</a>
               <span class="text-muted">{{ msg.timestamp.strftime('%d %B %Y') }}</span>
+              <span>
+                {% if g.user %}
+                {% if g.user.id == msg.user.id %}
+                 <div></div>
+                {% elif g.user.has_liked(msg) %}
+                  <form method="POST"
+                        action="/users/unlike/{{msg.id}}">
+                    <button class="btn like-btn"><i class="fas fa-thumbs-up"></i></button>
+                  </form>
+                {% else %}
+                  <form method="POST" action="/users/like/{{msg.id}}">
+                    <button class="btn like-btn"><i class="far fa-thumbs-up"></i></button>
+                  </form>
+                {% endif %}
+              {% endif %}
+              </span>
               <p>{{ msg.text }}</p>
 
             </div>

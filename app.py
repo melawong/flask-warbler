@@ -253,12 +253,6 @@ def delete_user():
 
         do_logout()
 
-        messages = Message.query.filter_by(user_id=g.user.id).all()
-        for message in messages:
-            db.session.delete(message)
-
-        db.session.commit()
-
         db.session.delete(g.user)
         db.session.commit()
 
@@ -380,7 +374,7 @@ def show_likes(user_id):
 
 @app.post('/users/like/<int:message_id>')
 def add_like(message_id):
-    """Add a liked message for the currently-logged-in user."""
+    """Add a liked message for the currently-logged-in-user."""
 
     if not g.user:
         flash("Access unauthorized.", "danger")
@@ -401,7 +395,7 @@ def unlike(message_id):
         flash("Access unauthorized.", "danger")
         return redirect("/")
 
-    unliked_message = Message.query.get(message_id)
+    unliked_message = Message.query.get_or_404(message_id)
     g.user.likes.remove(unliked_message)
     db.session.commit()
 
