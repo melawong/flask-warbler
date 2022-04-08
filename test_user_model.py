@@ -144,8 +144,12 @@ class UserModelTestCase(TestCase):
         valid_user = User.signup(**USER_DATA_valid)
         db.session.commit()
 
-        self.assertIsInstance(valid_user, User)
+        #self.assertIsInstance(valid_user, User)
         self.assertTrue(User.query.get(valid_user.id))
+        self.assertEqual(valid_user.username, "valid_un")
+        self.assertEqual(valid_user.email, "valid@email.com")
+        self.assertNotEqual(valid_user.password, "HASHED_PASSWORD")
+        self.assertTrue(valid_user.password.startswith("$2b$12$"))
 
 
     def test_user_signup_invalid_email(self):
