@@ -53,9 +53,10 @@ class MessageViewTestCase(TestCase):
                                     password="testuser2",
                                     image_url=None)
 
-        self.testuser2_id = self.testuser2.id
-
         db.session.commit()
+
+        self.testuser_id = self.testuser.id
+        self.testuser2_id = self.testuser2.id
 
 
     def tearDown(self):
@@ -122,13 +123,11 @@ class MessageViewTestCase(TestCase):
                 sess["other_user"] = self.testuser2.id
 
             resp = c.post("/messages/new",
-                data={"text": "hihihi", "user_id": sess["other_user"],
-                  "blah": "blah"},
+                data={"text": "hihihi", "user_id": sess["other_user"]},
                                                 follow_redirects=True)
 
             html = resp.get_data(as_text=True)
             msg = Message.query.one_or_none()
-            print("length of messages",len(Message.query.all()))
 
             #tests route followed redirects properly
             self.assertEqual(resp.status_code, 200)
@@ -139,21 +138,102 @@ class MessageViewTestCase(TestCase):
 
             #tests no message was added to other user
             self.assertFalse(msg.user_id == sess["other_user"])
-            #self.assertEqual(msg, None)
 
 
 
     def test_show_message(self):
         """ Does show_message route show single message properly?"""
-        # does the message page give the correct status code
-        # does message page give correct message --> render_temp
-        # does going to non-existent message page show 404
-        pass
+
+        with self.client as c:
+            
+            user = User.query.get(self.testuser_id)
+            message = Message(text="test message text")
+            user.messages.append(message)
+
+            db.session.commit()
+
+            resp = c.get(f"/messages/{message.id}")
+
+            html = resp.get_data(as_text=True)
+            
+            # does the message page give the correct status code
+            self.assertEqual(resp.status_code, 200)
 
 
-    def test_destroy_message(self):
-        """Does destroy_message route delete a message"""
-        # check can a curr_user delete their own message? (Yes) --> resp code + rend + db check
+            # does route show correct message template
+            self.assertIn("Test for rendering show-message page", html)
+            self.assertIn(f"{message.text}", html)
+
+
+            # does going to non-existent message page show 404
+            resp = c.get("/messages/0")
+            self.assertEqual(resp.status_code, 404)  
+        
+
+
+    def test_destroy_message_valid(self):
+        """Does destroy_message route delete a message successfully when proper credentials"""
+
+        with self.client as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.testuser.id
+
+            user = User.query.get(self.testuser_id)
+            message = Message(text="test message text")
+            user.messages.append(message)
+
+            db.session.commit()
+
+            resp = c.post(f'/messages/{message.id}/delete', follow_redirects=True)
+
+            html = resp.get_data(as_text=True)
+
+            # correct status code?
+            self.assertEqual(resp.status_code, 200)
+
+            # renders correct template?
+            self.assertIn("Test for rendering user detail page", html)
+            self.assertNotIn("test message text", html)
+            self.assertIn(f"{user.username}", html)
+
+            # check db no longer has message
+            msg = Message.query.filter_by(text="test message text").one_or_none()
+            self.assertEqual(msg, None)
+        
+
+    def test_destroy_message_(self):
+        """
+        Does destroy_message route fail to delete message due to invalid credentials
+
+        Can user delete message that is not theirs
+        """
+
+        with self.client as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.testuser.id
+            
+            user2 = User.query.get(self.testuser2_id)
+            message = Message(text="test message text")
+            user2.messages.append(message)
+
+            db.session.commit()
+
+            resp = c.post(f'/messages/{message.id}/delete', follow_redirects=True)
+
+            html = resp.get_data(as_text=True)
+
+            # correct status code?
+            self.assertEqual(resp.status_code, 200)
+
+            # renders correct template?
+            self.assertIn("Access unauthorized.", html)
+            self.assertIn("Tests template rendering home", html)
+
+            # check db still has message
+            msg = Message.query.filter_by(text="test message text").one_or_none()
+            self.assertNotEqual(msg, None)
+
+
+
         # can curr_user delete message that is not theirs? (No) --> resp code + rend
         # can you delete any message when logged out? (No) --> resp code + rend
-        pass

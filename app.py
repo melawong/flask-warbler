@@ -283,7 +283,6 @@ def messages_add():
         # #     flash("Access unauthorized.", "danger")
         # #     return redirect("/")
         # print(msg)
-        breakpoint()
         # db.session.add(msg)
         g.user.messages.append(msg)
         db.session.commit()
@@ -305,11 +304,12 @@ def messages_show(message_id):
 def messages_destroy(message_id):
     """Delete a message."""
 
-    if not g.user:
+    msg = Message.query.get_or_404(message_id)
+
+    if not g.user or not g.user.id == msg.user_id:
         flash("Access unauthorized.", "danger")
         return redirect("/")
 
-    msg = Message.query.get_or_404(message_id)
     db.session.delete(msg)
     db.session.commit()
 
