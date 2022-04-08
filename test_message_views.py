@@ -92,6 +92,7 @@ class MessageViewTestCase(TestCase):
             html = resp.get_data(as_text=True)
             self.assertIn("Hello", html)
 
+
     def test_add_message_logged_out(self):
         """When logged out, can anyone add a message? -> No """
 

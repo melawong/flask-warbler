@@ -63,3 +63,64 @@ class UserViewTestCase(TestCase):
         """Clean up fouled transactions."""
 
         db.session.rollback()
+
+
+    def test_show_userlist(self):
+        """Tests if userlist shows all users if not specifically searched"""
+
+        with self.client as c:
+
+            resp = c.get(f"/users")
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn("Test for rendering userlist template", html)
+
+
+    def test_show_user_details(self):
+        """Tests that user detail page renders correct user's profile"""
+
+        with self.client as c:
+
+            resp = c.get(f"/users/{self.testuser_id}")
+            html = resp.get_data(as_text=True)
+            user = User.query.get(self.testuser_id)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn(f"@{user.username}", html)
+            self.assertIn("Test for rendering user show page", html)
+
+            resp = c.get("/users/0")
+            self.assertEqual(resp.status_code, 404)
+
+    # test that logged in user going to their own page has diff buttons?
+
+    def test_users_following_page_logged_in(self):
+
+        with self.client as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.testuser.id
+
+            user = User.query.get(self.testuser_id)
+            resp = c.get(f"/users/{user.id}/following")
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn("Test for rendering user following page", html)
+            # test users followers actually show up?
+
+            #tests 404 is properly triggered on invalid user_id search
+            resp = c.get("/users/0/following")
+            self.assertEqual(resp.status_code, 404)
+    # if logged in -- followers page shows up, rend temp, status code
+    # if logged out -- test redirect, render home-anon "/"
+
+    def test_users_following_page_logged_out(self):
+
+        with self.client as c:
+            user = User.query.get(self.testuser_id)
+            resp = c.get(f"/users/{user.id}/following", follow_redirects=True)
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn("Tests template rendering home-anon", html)
