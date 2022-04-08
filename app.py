@@ -270,7 +270,7 @@ def messages_add():
 
     Show form if GET. If valid, update message and redirect to user page.
     """
-    
+
     if not g.user:
         flash("Access unauthorized.", "danger")
         return redirect("/")
@@ -279,9 +279,12 @@ def messages_add():
 
     if form.validate_on_submit():
         msg = Message(text=form.text.data)
-        # if not g.user.id == msg.user_id:
-        #     flash("Access unauthorized.", "danger")
-        #     return redirect("/")
+        # # if not msg.user_id == None:
+        # #     flash("Access unauthorized.", "danger")
+        # #     return redirect("/")
+        # print(msg)
+        breakpoint()
+        # db.session.add(msg)
         g.user.messages.append(msg)
         db.session.commit()
 

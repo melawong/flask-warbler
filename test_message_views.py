@@ -122,21 +122,24 @@ class MessageViewTestCase(TestCase):
                 sess["other_user"] = self.testuser2.id
 
             resp = c.post("/messages/new",
-                data={
-	"csrf_token": "ImE1NjAzNGZkZWRmZjljMzk2YzY2MjNiMDg5OWI2ODNjYmNhZjUxMGIi.Yk98jQ.JLgec8XIc_8QvryEK1IEv6oJ2_A",
-"text": "hihihi", "user_id": sess["other_user"]}, follow_redirects=True)
+                data={"text": "hihihi", "user_id": sess["other_user"],
+                  "blah": "blah"},
+                                                follow_redirects=True)
 
             html = resp.get_data(as_text=True)
             msg = Message.query.one_or_none()
+            print("length of messages",len(Message.query.all()))
 
             #tests route followed redirects properly
             self.assertEqual(resp.status_code, 200)
 
-            #tests route renders correct template and flash message after redirects
+            #tests route renders correct template after redirect
+            #route will redirect to user detail page because user is logged in
             self.assertIn("Test for rendering user detail page", html)
 
-            #tests no message stored in db
+            #tests no message was added to other user
             self.assertFalse(msg.user_id == sess["other_user"])
+            #self.assertEqual(msg, None)
 
 
 
