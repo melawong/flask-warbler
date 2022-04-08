@@ -218,7 +218,6 @@ def stop_following(follow_id):
 def update_profile(user_id):
     """Update profile for current user."""
 
-    breakpoint()
     if not g.user.id==user_id:
         flash("Access unauthorized.", "danger")
         return redirect("/")
@@ -271,7 +270,7 @@ def messages_add():
 
     Show form if GET. If valid, update message and redirect to user page.
     """
-
+    
     if not g.user:
         flash("Access unauthorized.", "danger")
         return redirect("/")
@@ -280,6 +279,9 @@ def messages_add():
 
     if form.validate_on_submit():
         msg = Message(text=form.text.data)
+        # if not g.user.id == msg.user_id:
+        #     flash("Access unauthorized.", "danger")
+        #     return redirect("/")
         g.user.messages.append(msg)
         db.session.commit()
 
@@ -292,7 +294,7 @@ def messages_add():
 def messages_show(message_id):
     """Show a message."""
 
-    msg = Message.query.get(message_id)
+    msg = Message.query.get_or_404(message_id)
     return render_template('messages/show.html', message=msg)
 
 
@@ -304,7 +306,7 @@ def messages_destroy(message_id):
         flash("Access unauthorized.", "danger")
         return redirect("/")
 
-    msg = Message.query.get(message_id)
+    msg = Message.query.get_or_404(message_id)
     db.session.delete(msg)
     db.session.commit()
 

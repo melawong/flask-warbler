@@ -8,8 +8,11 @@
 import os
 from unittest import TestCase
 from sqlalchemy import exc
-
+from flask_bcrypt import Bcrypt
 from models import db, User, Message, Follows, Likes
+
+bcrypt = Bcrypt()
+
 
 # BEFORE we import our app, let's set an environmental variable
 # to use a different database for tests (we need to do this
@@ -29,6 +32,7 @@ from app import app
 db.drop_all()
 db.create_all()
 
+
 USER_DATA_1 = {
     "email" : "test1@test.com",
     "username": "testuser_1",
@@ -41,13 +45,6 @@ USER_DATA_2 = {
     "password": "HASHED_PASSWORD"
 }
 
-
-
-##fail bad email (non-email)
-## fail repeat email
-## test null username
-## fail repeat username
-## fail bad pw length
 
 
 class UserModelTestCase(TestCase):
@@ -94,7 +91,7 @@ class UserModelTestCase(TestCase):
         # User should have no messages & no followers
         self.assertEqual(len(u.messages), 0)
         self.assertEqual(len(u.followers), 0)
-    
+
 
     def test_user_repr(self):
         """Does __repr__ return as expected"""
@@ -103,7 +100,7 @@ class UserModelTestCase(TestCase):
 
         self.assertEqual(repr(u1), f'<User #{u1.id}: {u1.username}, {u1.email}>')
 
-    
+
     def test_is_following(self):
         """Test that is_following function properly detects following and not-following"""
 
@@ -168,12 +165,12 @@ class UserModelTestCase(TestCase):
             "image_url": ""
         }
 
-        invalid_em = User.signup(**USER_DATA_invalid_em)
+        User.signup(**USER_DATA_invalid_em)
         with self.assertRaises(exc.IntegrityError) as context:
             db.session.commit()
 
         db.session.rollback()
-        repeat_em = User.signup(**USER_DATA_repeat_em)
+        User.signup(**USER_DATA_repeat_em)
         with self.assertRaises(exc.IntegrityError) as context:
             db.session.commit()
 
@@ -194,13 +191,13 @@ class UserModelTestCase(TestCase):
             "password": "HASHED_PASSWORD",
             "image_url": ""
         }
-        
-        null_un = User.signup(**USER_DATA_null_un)
+
+        User.signup(**USER_DATA_null_un)
         with self.assertRaises(exc.IntegrityError) as context:
             db.session.commit()
 
         db.session.rollback()
-        repeat_un = User.signup(**USER_DATA_repeat_un)
+        User.signup(**USER_DATA_repeat_un)
         with self.assertRaises(exc.IntegrityError) as context:
             db.session.commit()
 
@@ -221,9 +218,46 @@ class UserModelTestCase(TestCase):
             "password": None,
             "image_url": ""
         }
-        
+
         with self.assertRaises(ValueError) as context:
             User.signup(**USER_DATA_empty_pw)
 
         with self.assertRaises(ValueError) as context:
             User.signup(**USER_DATA_null_pw)
+
+
+    def test_user_authenticate_valid(self):
+        """Test User.authenticate succeeds when passed valid arguments"""
+
+        valid_user = User.query.get(self.user_1_id)
+        hashed_pwd = bcrypt.generate_password_hash(valid_user.password).decode('UTF-8')
+        valid_user.password = hashed_pwd
+        db.session.commit()
+
+        resp = User.authenticate(valid_user.username, 'HASHED_PASSWORD')
+        self.assertIsInstance(resp, User)
+
+
+    def test_user_authenticate_invalid_un(self):
+        """Test User.authenticate fails when passed invalid username"""
+
+        valid_user = User.query.get(self.user_1_id)
+        hashed_pwd = bcrypt.generate_password_hash(valid_user.password).decode('UTF-8')
+        valid_user.password = hashed_pwd
+        db.session.commit()
+
+        resp = User.authenticate('INVALID_USERNAME', 'HASHED_PASSWORD')
+        self.assertFalse(resp)
+
+
+    def test_user_authenticate_invalid_pw(self):
+        """Test User.authenticate fails when passed invalid password"""
+
+        valid_user = User.query.get(self.user_1_id)
+        hashed_pwd = bcrypt.generate_password_hash(valid_user.password).decode('UTF-8')
+        valid_user.password = hashed_pwd
+        db.session.commit()
+
+        resp = User.authenticate(valid_user.username, 'INVALID_PASSWORD')
+        self.assertFalse(resp)
+

@@ -48,10 +48,24 @@ class MessageViewTestCase(TestCase):
                                     password="testuser",
                                     image_url=None)
 
+        self.testuser2 = User.signup(username="testuser2",
+                                    email="test2@test.com",
+                                    password="testuser2",
+                                    image_url=None)
+
+        self.testuser2_id = self.testuser2.id
+
         db.session.commit()
 
-    def test_add_message(self):
-        """Can use add a message?"""
+
+    def tearDown(self):
+        """Clean up fouled transactions."""
+
+        db.session.rollback()
+
+
+    def test_add_message_valid(self):
+        """Can valid user add a message for themselves?"""
 
         # Since we need to change the session to mimic logging in,
         # we need to use the changing-session trick:
@@ -63,10 +77,80 @@ class MessageViewTestCase(TestCase):
             # Now, that session setting is saved, so we can have
             # the rest of ours test
 
-            resp = c.post("/messages/new", data={"text": "Hello"})
+            resp = c.post("/messages/new", data={"text": "Hello"},
+                                            follow_redirects=True)
 
-            # Make sure it redirects
-            self.assertEqual(resp.status_code, 302)
+            #tests route followed redirects properly
+            self.assertEqual(resp.status_code, 200)
 
+            #tests message stored correctly in db
             msg = Message.query.one()
             self.assertEqual(msg.text, "Hello")
+
+            #tests route renders correct message/template after redirects
+            html = resp.get_data(as_text=True)
+            self.assertIn("Hello", html)
+
+    def test_add_message_logged_out(self):
+        """When logged out, can anyone add a message? -> No """
+
+        with self.client as c:
+
+            resp = c.post("/messages/new", data={"text": "Hello"},
+                                            follow_redirects=True)
+
+            html = resp.get_data(as_text=True)
+            msg = Message.query.one_or_none()
+
+            #tests route followed redirects properly
+            self.assertEqual(resp.status_code, 200)
+
+            #tests no message stored in db
+            self.assertEqual(msg, None)
+
+            #tests route renders correct template and flash message after redirects
+            self.assertIn("Access unauthorized.", html)
+            self.assertIn("Tests template rendering home-anon", html)
+
+
+    def test_add_message_invalid_user(self):
+        """When logged in, can user add message for different user? -> No """
+
+        with self.client as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.testuser.id
+                sess["other_user"] = self.testuser2.id
+
+            resp = c.post("/messages/new",
+                data={
+	"csrf_token": "ImE1NjAzNGZkZWRmZjljMzk2YzY2MjNiMDg5OWI2ODNjYmNhZjUxMGIi.Yk98jQ.JLgec8XIc_8QvryEK1IEv6oJ2_A",
+"text": "hihihi", "user_id": sess["other_user"]}, follow_redirects=True)
+
+            html = resp.get_data(as_text=True)
+            msg = Message.query.one_or_none()
+
+            #tests route followed redirects properly
+            self.assertEqual(resp.status_code, 200)
+
+            #tests route renders correct template and flash message after redirects
+            self.assertIn("Test for rendering user detail page", html)
+
+            #tests no message stored in db
+            self.assertFalse(msg.user_id == sess["other_user"])
+
+
+
+    def test_show_message(self):
+        """ Does show_message route show single message properly?"""
+        # does the message page give the correct status code
+        # does message page give correct message --> render_temp
+        # does going to non-existent message page show 404
+        pass
+
+
+    def test_destroy_message(self):
+        """Does destroy_message route delete a message"""
+        # check can a curr_user delete their own message? (Yes) --> resp code + rend + db check
+        # can curr_user delete message that is not theirs? (No) --> resp code + rend
+        # can you delete any message when logged out? (No) --> resp code + rend
+        pass
