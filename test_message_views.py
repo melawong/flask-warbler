@@ -78,19 +78,19 @@ class MessageViewTestCase(TestCase):
             # Now, that session setting is saved, so we can have
             # the rest of ours test
 
-            resp = c.post("/messages/new", data={"text": "Hello"},
+            resp = c.post("/messages/new", data={"text": "Test New Message Hello"},
                                             follow_redirects=True)
 
             #tests route followed redirects properly
             self.assertEqual(resp.status_code, 200)
 
             #tests message stored correctly in db
-            msg = Message.query.one()
-            self.assertEqual(msg.text, "Hello")
+            msg = Message.query.filter_by(text="Test New Message Hello").one()
+            self.assertEqual(msg.text, "Test New Message Hello")
 
             #tests route renders correct message/template after redirects
             html = resp.get_data(as_text=True)
-            self.assertIn("Hello", html)
+            self.assertIn("Test New Message Hello", html)
 
 
     def test_add_message_logged_out(self):
@@ -98,11 +98,11 @@ class MessageViewTestCase(TestCase):
 
         with self.client as c:
 
-            resp = c.post("/messages/new", data={"text": "Hello"},
+            resp = c.post("/messages/new", data={"text": "Test New Message Hello"},
                                             follow_redirects=True)
 
             html = resp.get_data(as_text=True)
-            msg = Message.query.one_or_none()
+            msg = Message.query.filter_by(text="Test New Message Hello").one_or_none()
 
             #tests route followed redirects properly
             self.assertEqual(resp.status_code, 200)
@@ -113,33 +113,6 @@ class MessageViewTestCase(TestCase):
             #tests route renders correct template and flash message after redirects
             self.assertIn("Access unauthorized.", html)
             self.assertIn("Tests template rendering home-anon", html)
-
-
-    def test_add_message_invalid_user(self):
-        """When logged in, can user add message for different user? -> No """
-
-        with self.client as c:
-            with c.session_transaction() as sess:
-                sess[CURR_USER_KEY] = self.testuser.id
-                sess["other_user"] = self.testuser2.id
-
-            resp = c.post("/messages/new",
-                data={"text": "hihihi", "user_id": sess["other_user"]},
-                                                follow_redirects=True)
-
-            html = resp.get_data(as_text=True)
-            msg = Message.query.one_or_none()
-
-            #tests route followed redirects properly
-            self.assertEqual(resp.status_code, 200)
-
-            #tests route renders correct template after redirect
-            #route will redirect to user detail page because user is logged in
-            self.assertIn("Test for rendering user detail page", html)
-
-            #tests no message was added to other user
-            self.assertFalse(msg.user_id == sess["other_user"])
-
 
 
     def test_show_message(self):
@@ -166,14 +139,16 @@ class MessageViewTestCase(TestCase):
             self.assertIn(f"{message.text}", html)
 
 
-            # does going to non-existent message page show 404
+    def test_show_message_404(self):
+        """ Does show_message route show 404 when accessing non-existent message?"""
+
+        with self.client as c:
             resp = c.get("/messages/0")
             self.assertEqual(resp.status_code, 404)
 
 
-
     def test_destroy_message_valid(self):
-        """Does destroy_message route delete a message successfully when proper credentials"""
+        """Does destroy_message route delete a message successfully with proper credentials"""
 
         with self.client as c:
             with c.session_transaction() as sess:
@@ -203,16 +178,13 @@ class MessageViewTestCase(TestCase):
 
 
     def test_destroy_message_invalid(self):
-        """
-        Does destroy_message route fail to delete message due to invalid credentials
-
-        Can user delete message that is not theirs
-        """
+        """Can user delete message that is not theirs"""
 
         with self.client as c:
             with c.session_transaction() as sess:
                 sess[CURR_USER_KEY] = self.testuser.id
 
+            # add message to user2 to try to delete
             user2 = User.query.get(self.testuser2_id)
             message = Message(text="test message text")
             user2.messages.append(message)
@@ -241,6 +213,7 @@ class MessageViewTestCase(TestCase):
 
         with self.client as c:
 
+            # add message to user2 to try to delete
             user2 = User.query.get(self.testuser2_id)
             message = Message(text="test message text")
             user2.messages.append(message)

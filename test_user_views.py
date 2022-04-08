@@ -93,9 +93,11 @@ class UserViewTestCase(TestCase):
             resp = c.get("/users/0")
             self.assertEqual(resp.status_code, 404)
 
-    # test that logged in user going to their own page has diff buttons?
+            # test that logged in user going to their own page has diff buttons?
+
 
     def test_users_following_page_logged_in(self):
+        """Tests that a logged in user can view a profiles following page"""
 
         with self.client as c:
             with c.session_transaction() as sess:
@@ -107,15 +109,19 @@ class UserViewTestCase(TestCase):
 
             self.assertEqual(resp.status_code, 200)
             self.assertIn("Test for rendering user following page", html)
-            # test users followers actually show up?
+            # test users followings actually show up?
 
             #tests 404 is properly triggered on invalid user_id search
             resp = c.get("/users/0/following")
             self.assertEqual(resp.status_code, 404)
-    # if logged in -- followers page shows up, rend temp, status code
-    # if logged out -- test redirect, render home-anon "/"
 
+    
     def test_users_following_page_logged_out(self):
+        """
+        Tests that following page cannot be accessed and redirects 
+
+        if no one is logged in.
+        """
 
         with self.client as c:
             user = User.query.get(self.testuser_id)
@@ -124,3 +130,61 @@ class UserViewTestCase(TestCase):
 
             self.assertEqual(resp.status_code, 200)
             self.assertIn("Tests template rendering home-anon", html)
+
+
+    def test_users_followers_page_logged_in(self):
+        """Tests that a logged in user can view a profiles followers page"""
+
+        with self.client as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.testuser.id
+
+            user = User.query.get(self.testuser_id)
+            resp = c.get(f"/users/{user.id}/followers")
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn("Test for rendering user followers page", html)
+            # test users followers actually show up?
+
+            #tests 404 is properly triggered on invalid user_id search
+            resp = c.get("/users/0/followers")
+            self.assertEqual(resp.status_code, 404)
+
+    
+    def test_users_followers_page_logged_out(self):
+        """
+        Tests that followers page cannot be accessed and redirects 
+
+        if no one is logged in.
+        """
+
+        with self.client as c:
+            user = User.query.get(self.testuser_id)
+            resp = c.get(f"/users/{user.id}/followers", follow_redirects=True)
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn("Tests template rendering home-anon", html)
+
+    ########## WIP
+    
+    # def test_add_follow_logged_in(self):
+    #     """Test that follow works for a logged in user"""
+
+    #     with self.client as c:
+    #         with c.session_transaction() as sess:
+    #             sess[CURR_USER_KEY] = self.testuser.id
+        
+
+    #         user = User.query.get(self.testuser_id)
+    #         resp = c.post(f"/users/follow/{self.testuser2_id}")
+
+
+    # Positive: follow works for logged in user --> render, status code, db
+        # --> see that person on your follow page
+        # --> check 404
+
+
+
+    # Negative: follow shouldn't work for logged OUT user --> render, status, flash, db
